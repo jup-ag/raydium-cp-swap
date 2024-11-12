@@ -202,7 +202,7 @@ pub fn withdraw_instr(
             vault_0_mint: token_0_mint,
             vault_1_mint: token_1_mint,
             lp_mint: token_lp_mint,
-            memo_program: spl_memo::id(),
+            memo_program: spl_memo::ID,
         })
         .args(raydium_cp_instructions::Withdraw {
             lp_token_amount,

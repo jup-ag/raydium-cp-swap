@@ -88,7 +88,7 @@ pub struct Withdraw<'info> {
     /// memo program
     /// CHECK:
     #[account(
-        address = spl_memo::id()
+        address = spl_memo::ID
     )]
     pub memo_program: UncheckedAccount<'info>,
 }

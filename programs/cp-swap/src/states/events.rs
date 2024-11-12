@@ -4,7 +4,6 @@ use anchor_lang::prelude::*;
 #[event]
 #[cfg_attr(feature = "client", derive(Debug))]
 pub struct LpChangeEvent {
-    #[index]
     pub pool_id: Pubkey,
     pub lp_amount_before: u64,
     /// pool vault sub trade fees
@@ -25,7 +24,6 @@ pub struct LpChangeEvent {
 #[event]
 #[cfg_attr(feature = "client", derive(Debug))]
 pub struct SwapEvent {
-    #[index]
     pub pool_id: Pubkey,
     /// pool vault sub trade fees
     pub input_vault_before: u64,
