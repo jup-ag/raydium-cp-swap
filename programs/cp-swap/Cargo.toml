@@ -1,8 +1,9 @@
 [package]
 name = "raydium-cp-swap"
-version = "0.1.0"
-description = "Created with Anchor"
+version = "0.2.0"
+description = "Raydium constant product AMM, supports Token2022 and without Openbook"
 edition = "2021"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -10,13 +11,13 @@ name = "raydium_cp_swap"
 
 [features]
 no-entrypoint = []
-no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 default = []
 enable-log = []
 devnet = []
 client = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
 anchor-lang = { workspace = true, features = ["init-if-needed"] }

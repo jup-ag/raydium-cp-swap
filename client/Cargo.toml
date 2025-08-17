@@ -1,8 +1,10 @@
 [package]
 name = "client"
 version = "0.1.0"
-rust-version = "1.75.0"
 edition = "2021"
+
+[features]
+devnet = ["raydium-cp-swap/devnet"]
 
 [dependencies]
 anchor-client = { workspace = true }
