@@ -5,8 +5,8 @@ use anchor_spl::{
     token_2022::{self},
     token_interface::{initialize_account3, InitializeAccount3, Mint},
 };
-use spl_token_2022::{
-    self,
+use spl_token_2022_interface as spl_token_2022;
+use spl_token_2022_interface::{
     extension::{
         transfer_fee::{TransferFeeConfig, MAX_FEE_BASIS_POINTS},
         BaseStateWithExtensions, ExtensionType, StateWithExtensions,
@@ -20,6 +20,10 @@ const MINT_WHITELIST: [&'static str; 4] = [
     "FrBfWJ4qE5sCzKm3k3JaAtqZcXUh4LvJygDeketsrsH4",
     "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo",
 ];
+
+pub fn map_token_2022_error<E>(_: E) -> anchor_lang::error::Error {
+    ProgramError::InvalidAccountData.into()
+}
 
 pub fn transfer_from_user_to_pool_vault<'a>(
     authority: AccountInfo<'a>,
@@ -35,7 +39,7 @@ pub fn transfer_from_user_to_pool_vault<'a>(
     }
     token_2022::transfer_checked(
         CpiContext::new(
-            token_program.to_account_info(),
+            token_program.key(),
             token_2022::TransferChecked {
                 from,
                 to: to_vault,
@@ -63,7 +67,7 @@ pub fn transfer_from_pool_vault_to_user<'a>(
     }
     token_2022::transfer_checked(
         CpiContext::new_with_signer(
-            token_program.to_account_info(),
+            token_program.key(),
             token_2022::TransferChecked {
                 from: from_vault,
                 to,
@@ -88,7 +92,7 @@ pub fn token_mint_to<'a>(
 ) -> Result<()> {
     token_2022::mint_to(
         CpiContext::new_with_signer(
-            token_program,
+            token_program.key(),
             token_2022::MintTo {
                 to: destination,
                 authority,
@@ -110,7 +114,7 @@ pub fn token_burn<'a>(
 ) -> Result<()> {
     token_2022::burn(
         CpiContext::new_with_signer(
-            token_program.to_account_info(),
+            token_program.key(),
             token_2022::Burn {
                 from,
                 authority,
@@ -131,7 +135,8 @@ pub fn get_transfer_inverse_fee(mint_info: &AccountInfo, post_fee_amount: u64) -
         return err!(ErrorCode::InvalidInput);
     }
     let mint_data = mint_info.try_borrow_data()?;
-    let mint = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&mint_data)?;
+    let mint = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&mint_data)
+        .map_err(map_token_2022_error)?;
 
     let fee = if let Ok(transfer_fee_config) = mint.get_extension::<TransferFeeConfig>() {
         let epoch = Clock::get()?.epoch;
@@ -163,7 +168,8 @@ pub fn get_transfer_fee(mint_info: &AccountInfo, pre_fee_amount: u64) -> Result<
         return Ok(0);
     }
     let mint_data = mint_info.try_borrow_data()?;
-    let mint = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&mint_data)?;
+    let mint = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&mint_data)
+        .map_err(map_token_2022_error)?;
 
     let fee = if let Ok(transfer_fee_config) = mint.get_extension::<TransferFeeConfig>() {
         transfer_fee_config
@@ -185,8 +191,11 @@ pub fn is_supported_mint(mint_account: &InterfaceAccount<Mint>) -> Result<bool> 
         return Ok(true);
     }
     let mint_data = mint_info.try_borrow_data()?;
-    let mint = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&mint_data)?;
-    let extensions = mint.get_extension_types()?;
+    let mint = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&mint_data)
+        .map_err(map_token_2022_error)?;
+    let extensions = mint
+        .get_extension_types()
+        .map_err(map_token_2022_error)?;
     for e in extensions {
         if e != ExtensionType::TransferFeeConfig
             && e != ExtensionType::MetadataPointer
@@ -214,13 +223,17 @@ pub fn create_token_account<'a>(
         if *mint_info.owner == token_2022::Token2022::id() {
             let mint_data = mint_info.try_borrow_data()?;
             let mint_state =
-                StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&mint_data)?;
-            let mint_extensions = mint_state.get_extension_types()?;
+                StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&mint_data)
+                    .map_err(map_token_2022_error)?;
+            let mint_extensions = mint_state
+                .get_extension_types()
+                .map_err(map_token_2022_error)?;
             let required_extensions =
                 ExtensionType::get_required_init_account_extensions(&mint_extensions);
             ExtensionType::try_calculate_account_len::<spl_token_2022::state::Account>(
                 &required_extensions,
-            )?
+            )
+            .map_err(map_token_2022_error)?
         } else {
             TokenAccount::LEN
         }
@@ -234,7 +247,7 @@ pub fn create_token_account<'a>(
         space,
     )?;
     initialize_account3(CpiContext::new(
-        token_program.to_account_info(),
+        token_program.key(),
         InitializeAccount3 {
             account: token_account.to_account_info(),
             mint: mint_account.to_account_info(),
@@ -260,7 +273,7 @@ pub fn create_or_allocate_account<'a>(
             from: payer,
             to: target_account.clone(),
         };
-        let cpi_context = CpiContext::new(system_program.clone(), cpi_accounts);
+        let cpi_context = CpiContext::new(system_program.key(), cpi_accounts);
         system_program::create_account(
             cpi_context.with_signer(&[siger_seed]),
             lamports,
@@ -277,13 +290,13 @@ pub fn create_or_allocate_account<'a>(
                 from: payer.to_account_info(),
                 to: target_account.clone(),
             };
-            let cpi_context = CpiContext::new(system_program.clone(), cpi_accounts);
+            let cpi_context = CpiContext::new(system_program.key(), cpi_accounts);
             system_program::transfer(cpi_context, required_lamports)?;
         }
         let cpi_accounts = system_program::Allocate {
             account_to_allocate: target_account.clone(),
         };
-        let cpi_context = CpiContext::new(system_program.clone(), cpi_accounts);
+        let cpi_context = CpiContext::new(system_program.key(), cpi_accounts);
         system_program::allocate(
             cpi_context.with_signer(&[siger_seed]),
             u64::try_from(space).unwrap(),
@@ -292,7 +305,7 @@ pub fn create_or_allocate_account<'a>(
         let cpi_accounts = system_program::Assign {
             account_to_assign: target_account.clone(),
         };
-        let cpi_context = CpiContext::new(system_program.clone(), cpi_accounts);
+        let cpi_context = CpiContext::new(system_program.key(), cpi_accounts);
         system_program::assign(cpi_context.with_signer(&[siger_seed]), program_id)?;
     }
     Ok(())

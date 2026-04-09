@@ -14,7 +14,7 @@ use anchor_spl::{
     token::Token,
     token_interface::{Mint, TokenAccount, TokenInterface},
 };
-use spl_token_2022;
+use spl_token_2022_interface as spl_token_2022;
 use std::ops::Deref;
 
 #[derive(Accounts)]
@@ -251,7 +251,8 @@ pub fn initialize(
                 .to_account_info()
                 .try_borrow_data()?
                 .deref(),
-        )?
+        )
+        .map_err(map_token_2022_error)?
         .base;
     let token_1_vault =
         spl_token_2022::extension::StateWithExtensions::<spl_token_2022::state::Account>::unpack(
@@ -260,7 +261,8 @@ pub fn initialize(
                 .to_account_info()
                 .try_borrow_data()?
                 .deref(),
-        )?
+        )
+        .map_err(map_token_2022_error)?
         .base;
 
     CurveCalculator::validate_supply(token_0_vault.amount, token_1_vault.amount)?;
